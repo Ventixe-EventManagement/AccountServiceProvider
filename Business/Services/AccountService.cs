@@ -66,8 +66,8 @@ public class AccountService(
     public async Task<AccountResult> ForgotPasswordAsync(string email)
     {
         var user = await _userManager.FindByEmailAsync(email);
-        if (user == null || !await _userManager.IsEmailConfirmedAsync(user))
-            return AccountResult.CreateFailure("User not found or email not confirmed", 404);
+      // if (user == null || !await _userManager.IsEmailConfirmedAsync(user))
+           // return AccountResult.CreateFailure("User not found or email not confirmed", 404);
 
         var token = await _userManager.GeneratePasswordResetTokenAsync(user);
         var resetUrl = $"https://yourfrontend.com/reset-password?userId={user.Id}&token={Uri.EscapeDataString(token)}";
