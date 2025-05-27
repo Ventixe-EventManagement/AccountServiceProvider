@@ -38,10 +38,10 @@ public class AccountService(
 
             await _userManager.AddToRoleAsync(user, "User");
 
-            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var confirmationUrl = $"https://yourfrontend.com/verify-email?userId={user.Id}&token={Uri.EscapeDataString(token)}";
+           // var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            //var confirmationUrl = $"https://yourfrontend.com/verify-email?userId={user.Id}&token={Uri.EscapeDataString(token)}";
 
-            await _emailService.SendConfirmationEmailAsync(user.Email!, confirmationUrl);
+           // await _emailService.SendConfirmationEmailAsync(user.Email!, confirmationUrl);
 
             return AccountResult.CreateSuccess(201);
         }
