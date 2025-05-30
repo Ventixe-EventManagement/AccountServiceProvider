@@ -1,4 +1,5 @@
-﻿using Business.Models;
+﻿using Business.DTOs;
+using Business.Models;
 
 namespace Business.Interfaces;
 
@@ -11,4 +12,6 @@ public interface IAccountService
     Task<AccountResult> ForgotPasswordAsync(string email);
 
     Task<AccountResult> ResetPasswordAsync(string userId, string token, string newPassword);
+    Task<AccountResult<ValidatedUserDto>> ValidateLoginAsync(LoginRequest request);
+
 }

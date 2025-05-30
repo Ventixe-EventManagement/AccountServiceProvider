@@ -54,4 +54,14 @@ public class AccountsController(IAccountService accountService) : ControllerBase
 
         return Ok(new { message = "Password reset successful" });
     }
+
+    [HttpPost("validate-login")]
+    public async Task<IActionResult> ValidateLogin(LoginRequest request)
+    {
+        var result = await _accountService.ValidateLoginAsync(request);
+        if (!result.Success)
+            return StatusCode(result.StatusCode, new { result.Error });
+
+        return Ok(result.Result);
+    }
 }

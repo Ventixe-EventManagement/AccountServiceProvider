@@ -1,4 +1,5 @@
-﻿using Business.Factories;
+﻿using Business.DTOs;
+using Business.Factories;
 using Business.Interfaces;
 using Business.Models;
 using Data.Entities;
@@ -87,6 +88,27 @@ public class AccountService(
         return result.Succeeded
             ? AccountResult.CreateSuccess()
             : AccountResult.CreateFailure("Invalid or expired token", 400);
+    }
+
+    public async Task<AccountResult<ValidatedUserDto>> ValidateLoginAsync(LoginRequest request)
+    {
+        var user = await _userManager.FindByEmailAsync(request.Email);
+        if (user == null || !await _userManager.CheckPasswordAsync(user, request.Password))
+            return AccountResult<ValidatedUserDto>.CreateFailure("Invalid credentials", 401);
+
+       // if (!await _userManager.IsEmailConfirmedAsync(user))
+          //  return AccountResult<ValidatedUserDto>.CreateFailure("Email is not confirmed", 403);
+
+        var roles = await _userManager.GetRolesAsync(user);
+
+        var validatedUser = new ValidatedUserDto
+        {
+            Id = user.Id,
+            Email = user.Email!,
+            Roles = roles.ToList()
+        };
+
+        return AccountResult<ValidatedUserDto>.CreateSuccess(validatedUser);
     }
 }
 
