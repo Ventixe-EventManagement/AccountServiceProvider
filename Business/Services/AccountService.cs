@@ -10,12 +10,14 @@ namespace Business.Services;
 public class AccountService(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole> roleManager,
-    IEmailService emailService
+    IEmailService emailService,
+    IEmailQueuePublisher emailQueuePublisher
 ) : IAccountService
 {
     private readonly UserManager<ApplicationUser> _userManager = userManager;
     private readonly RoleManager<IdentityRole> _roleManager = roleManager;
     private readonly IEmailService _emailService = emailService;
+    private readonly IEmailQueuePublisher _emailQueuePublisher = emailQueuePublisher;
 
     public async Task<AccountResult> RegisterAsync(RegisterRequest request)
     {
@@ -39,10 +41,13 @@ public class AccountService(
 
             await _userManager.AddToRoleAsync(user, "User");
 
-           // var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            //var confirmationUrl = $"https://yourfrontend.com/verify-email?userId={user.Id}&token={Uri.EscapeDataString(token)}";
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
 
-           // await _emailService.SendConfirmationEmailAsync(user.Email!, confirmationUrl);
+            await _emailQueuePublisher.PublishVerificationEmailAsync(new VerifyEmailMessage
+            {
+                Email = user.Email!,
+                Token = token
+            });
 
             return AccountResult.CreateSuccess(201);
         }
@@ -67,14 +72,10 @@ public class AccountService(
     public async Task<AccountResult> ForgotPasswordAsync(string email)
     {
         var user = await _userManager.FindByEmailAsync(email);
-      // if (user == null || !await _userManager.IsEmailConfirmedAsync(user))
-           // return AccountResult.CreateFailure("User not found or email not confirmed", 404);
-
         var token = await _userManager.GeneratePasswordResetTokenAsync(user);
         var resetUrl = $"https://yourfrontend.com/reset-password?userId={user.Id}&token={Uri.EscapeDataString(token)}";
 
         await _emailService.SendResetPasswordEmailAsync(user.Email!, resetUrl);
-
         return AccountResult.CreateSuccess();
     }
 
@@ -96,8 +97,8 @@ public class AccountService(
         if (user == null || !await _userManager.CheckPasswordAsync(user, request.Password))
             return AccountResult<ValidatedUserDto>.CreateFailure("Invalid credentials", 401);
 
-       // if (!await _userManager.IsEmailConfirmedAsync(user))
-          //  return AccountResult<ValidatedUserDto>.CreateFailure("Email is not confirmed", 403);
+        if (!await _userManager.IsEmailConfirmedAsync(user))
+           return AccountResult<ValidatedUserDto>.CreateFailure("Email is not confirmed", 403);
 
         var roles = await _userManager.GetRolesAsync(user);
 
@@ -111,4 +112,3 @@ public class AccountService(
         return AccountResult<ValidatedUserDto>.CreateSuccess(validatedUser);
     }
 }
-

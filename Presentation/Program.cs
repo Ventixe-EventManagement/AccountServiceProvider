@@ -28,6 +28,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(x =>
 
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddHttpClient<IEmailService, HttpEmailService>();
+builder.Services.AddScoped<IEmailQueuePublisher, EmailQueuePublisher>();
 
 var app = builder.Build();
 
