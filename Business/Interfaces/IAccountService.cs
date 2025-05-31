@@ -2,7 +2,6 @@
 using Business.Models;
 
 namespace Business.Interfaces;
-
 public interface IAccountService
 {
     Task<AccountResult> RegisterAsync(RegisterRequest request);
