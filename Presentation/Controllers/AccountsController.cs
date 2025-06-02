@@ -1,5 +1,6 @@
 ﻿using Business.Interfaces;
 using Business.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Presentation.Controllers;
@@ -63,5 +64,16 @@ public class AccountsController(IAccountService accountService) : ControllerBase
             return StatusCode(result.StatusCode, new { result.Error });
 
         return Ok(result.Result);
+    }
+
+    [AllowAnonymous]
+    [HttpGet("user-id")]
+    public async Task<IActionResult> GetUserIdByEmail([FromQuery] string email)
+    {
+        var userId = await _accountService.GetUserIdByEmailAsync(email);
+        if (userId == null)
+            return NotFound("User not found");
+
+        return Ok(userId);
     }
 }

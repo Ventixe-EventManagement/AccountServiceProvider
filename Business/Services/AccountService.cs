@@ -111,4 +111,9 @@ public class AccountService(
 
         return AccountResult<ValidatedUserDto>.CreateSuccess(validatedUser);
     }
+    public async Task<string?> GetUserIdByEmailAsync(string email)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        return user?.Id;
+    }
 }

@@ -11,6 +11,9 @@ public interface IAccountService
     Task<AccountResult> ForgotPasswordAsync(string email);
 
     Task<AccountResult> ResetPasswordAsync(string userId, string token, string newPassword);
+
     Task<AccountResult<ValidatedUserDto>> ValidateLoginAsync(LoginRequest request);
+
+    Task<string?> GetUserIdByEmailAsync(string email);
 
 }
