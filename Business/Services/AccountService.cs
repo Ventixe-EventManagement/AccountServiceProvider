@@ -60,7 +60,7 @@ public class AccountService(
         }
     }
 
-    public async Task<AccountResult> VerifyEmailCodeAsync(string email, string code)
+    public async Task<AccountResult> ConfirmEmailAsync(string email, string code)
     {
         var user = await _userManager.FindByEmailAsync(email);
         if (user == null)
