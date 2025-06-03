@@ -1,6 +1,7 @@
 ﻿using Business.Interfaces;
 using Business.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Presentation.Controllers;
@@ -25,10 +26,11 @@ public class AccountsController(IAccountService accountService) : ControllerBase
     public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequest request)
     {
         var result = await _accountService.ConfirmEmailAsync(request.UserId, request.Token);
+
         if (!result.Success)
             return StatusCode(result.StatusCode, new { result.Error });
 
-        return Ok(new { message = "Email confirmed successfully" });
+        return Ok(new { message = "Email confirmed. Please complete your profile." });
     }
 
     [HttpPost("forgot-password")]
