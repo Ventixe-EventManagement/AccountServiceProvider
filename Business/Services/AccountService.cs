@@ -4,25 +4,28 @@ using Business.Interfaces;
 using Business.Models;
 using Data.Entities;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 
 namespace Business.Services;
 
 public class AccountService(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole> roleManager,
-    IEmailService emailService,
-    IEmailQueuePublisher emailQueuePublisher
+    IVerificationClient verificationClient,
+    ILogger<AccountService> logger
 ) : IAccountService
 {
     private readonly UserManager<ApplicationUser> _userManager = userManager;
     private readonly RoleManager<IdentityRole> _roleManager = roleManager;
-    private readonly IEmailService _emailService = emailService;
-    private readonly IEmailQueuePublisher _emailQueuePublisher = emailQueuePublisher;
+    private readonly IVerificationClient _verificationClient = verificationClient;
+    private readonly ILogger<AccountService> _logger = logger;
 
     public async Task<AccountResult> RegisterAsync(RegisterRequest request)
     {
         try
         {
+            _logger.LogInformation("📥 Registreringsförsök för {Email}", request.Email);
+
             var existingUser = await _userManager.FindByEmailAsync(request.Email);
             if (existingUser != null)
                 return AccountResult.CreateFailure("Email is already registered.", 409);
@@ -33,6 +36,7 @@ public class AccountService(
             if (!result.Succeeded)
             {
                 var error = string.Join("; ", result.Errors.Select(e => e.Description));
+                _logger.LogWarning("❌ Misslyckades skapa användare: {Error}", error);
                 return AccountResult.CreateFailure(error, 400);
             }
 
@@ -41,41 +45,46 @@ public class AccountService(
 
             await _userManager.AddToRoleAsync(user, "User");
 
-            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            _logger.LogInformation("✅ Användare skapad: {Email}", user.Email);
 
-            await _emailQueuePublisher.PublishVerificationEmailAsync(new VerifyEmailMessage
-            {
-                Email = user.Email!,
-                Token = token
-            });
+            await _verificationClient.SendVerificationCodeAsync(user.Email!);
+
+            _logger.LogInformation("📤 Verifikationskod skickad till {Email}", user.Email);
 
             return AccountResult.CreateSuccess(201);
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "❌ RegisterAsync – oväntat fel");
             return AccountResult.CreateFailure($"Unexpected error: {ex.Message}", 500);
         }
     }
 
-    public async Task<AccountResult> ConfirmEmailAsync(string userId, string token)
+    public async Task<AccountResult> VerifyEmailCodeAsync(string email, string code)
     {
-        var user = await _userManager.FindByIdAsync(userId);
+        var user = await _userManager.FindByEmailAsync(email);
         if (user == null)
             return AccountResult.CreateFailure("User not found", 404);
 
-        var result = await _userManager.ConfirmEmailAsync(user, token);
-        return result.Succeeded
-            ? AccountResult.CreateSuccess()
-            : AccountResult.CreateFailure("Invalid or expired token", 400);
+        var verificationResult = await _verificationClient.VerifyCodeAsync(email, code);
+
+        if (!verificationResult)
+            return AccountResult.CreateFailure("Invalid or expired verification code", 400);
+
+        user.EmailConfirmed = true;
+        await _userManager.UpdateAsync(user);
+
+        return AccountResult.CreateSuccess();
     }
 
     public async Task<AccountResult> ForgotPasswordAsync(string email)
     {
         var user = await _userManager.FindByEmailAsync(email);
-        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-        var resetUrl = $"https://yourfrontend.com/reset-password?userId={user.Id}&token={Uri.EscapeDataString(token)}";
+        if (user == null)
+            return AccountResult.CreateFailure("User not found", 404);
 
-        await _emailService.SendResetPasswordEmailAsync(user.Email!, resetUrl);
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        // TODO: Implementera en separat IPasswordResetClient och skicka länken via mejl
         return AccountResult.CreateSuccess();
     }
 
@@ -98,7 +107,7 @@ public class AccountService(
             return AccountResult<ValidatedUserDto>.CreateFailure("Invalid credentials", 401);
 
         if (!await _userManager.IsEmailConfirmedAsync(user))
-           return AccountResult<ValidatedUserDto>.CreateFailure("Email is not confirmed", 403);
+            return AccountResult<ValidatedUserDto>.CreateFailure("Email is not confirmed", 403);
 
         var roles = await _userManager.GetRolesAsync(user);
 
@@ -111,6 +120,7 @@ public class AccountService(
 
         return AccountResult<ValidatedUserDto>.CreateSuccess(validatedUser);
     }
+
     public async Task<string?> GetUserIdByEmailAsync(string email)
     {
         var user = await _userManager.FindByEmailAsync(email);

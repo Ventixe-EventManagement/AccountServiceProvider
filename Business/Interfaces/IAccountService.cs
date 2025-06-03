@@ -5,15 +5,7 @@ namespace Business.Interfaces;
 public interface IAccountService
 {
     Task<AccountResult> RegisterAsync(RegisterRequest request);
-
-    Task<AccountResult> ConfirmEmailAsync(string userId, string token);
-
-    Task<AccountResult> ForgotPasswordAsync(string email);
-
-    Task<AccountResult> ResetPasswordAsync(string userId, string token, string newPassword);
-
+    Task<AccountResult> ConfirmEmailAsync(string email, string code); // 🔧 Uppdaterad rad
     Task<AccountResult<ValidatedUserDto>> ValidateLoginAsync(LoginRequest request);
-
     Task<string?> GetUserIdByEmailAsync(string email);
-
 }

@@ -1,4 +1,5 @@
 using Business.Interfaces;
+using Business.Models;
 using Business.Services;
 using Data.Context;
 using Data.Entities;
@@ -27,8 +28,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(x =>
 .AddDefaultTokenProviders();
 
 builder.Services.AddScoped<IAccountService, AccountService>();
-builder.Services.AddHttpClient<IEmailService, HttpEmailService>();
-builder.Services.AddScoped<IEmailQueuePublisher, EmailQueuePublisher>();
+builder.Services.AddHttpClient<IVerificationClient, VerificationClient>();
 
 var app = builder.Build();
 

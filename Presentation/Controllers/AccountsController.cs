@@ -23,39 +23,14 @@ public class AccountsController(IAccountService accountService) : ControllerBase
     }
 
     [HttpPost("confirm-email")]
-    public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequest request)
+    public async Task<IActionResult> ConfirmEmail([FromBody] VerifyCodeRequest request)
     {
-        var result = await _accountService.ConfirmEmailAsync(request.UserId, request.Token);
+        var result = await _accountService.ConfirmEmailAsync(request.Email, request.Code);
 
         if (!result.Success)
             return StatusCode(result.StatusCode, new { result.Error });
 
         return Ok(new { message = "Email confirmed. Please complete your profile." });
-    }
-
-    [HttpPost("forgot-password")]
-    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
-    {
-        var result = await _accountService.ForgotPasswordAsync(request.Email);
-        if (!result.Success)
-            return StatusCode(result.StatusCode, new { result.Error });
-
-        return Ok(new { message = "Password reset email sent" });
-    }
-
-    [HttpPost("reset-password")]
-    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
-    {
-        var result = await _accountService.ResetPasswordAsync(
-            request.UserId,
-            request.Token,
-            request.NewPassword
-            );
-
-        if (!result.Success)
-            return StatusCode(result.StatusCode, new { result.Error });
-
-        return Ok(new { message = "Password reset successful" });
     }
 
     [HttpPost("validate-login")]
