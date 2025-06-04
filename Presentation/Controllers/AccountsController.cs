@@ -8,9 +8,10 @@ namespace Presentation.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class AccountsController(IAccountService accountService) : ControllerBase
+public class AccountsController(IAccountService accountService, IVerificationClient verificationClient) : ControllerBase
 {
     private readonly IAccountService _accountService = accountService;
+    private readonly IVerificationClient _verificationClient = verificationClient;
 
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequest request)
@@ -53,4 +54,12 @@ public class AccountsController(IAccountService accountService) : ControllerBase
 
         return Ok(userId);
     }
+
+    [HttpPost("resend-verification")]
+    public async Task<IActionResult> ResendVerification([FromBody] EmailOnlyRequest request)
+    {
+        await _verificationClient.SendVerificationCodeAsync(request.Email);
+        return Ok();
+    }
+
 }
