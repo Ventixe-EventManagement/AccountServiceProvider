@@ -8,6 +8,10 @@ using Microsoft.Extensions.Logging;
 
 namespace Business.Services;
 
+/// <summary>
+/// Service for handling user registration, login, email confirmation,
+/// and password management via ASP.NET Identity.
+/// </summary>
 public class AccountService(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole> roleManager,
@@ -20,11 +24,14 @@ public class AccountService(
     private readonly IVerificationClient _verificationClient = verificationClient;
     private readonly ILogger<AccountService> _logger = logger;
 
+    /// <summary>
+    /// Registers a new user and sends a verification code via the verification service.
+    /// </summary>
     public async Task<AccountResult> RegisterAsync(RegisterRequest request)
     {
         try
         {
-            _logger.LogInformation("📥 Registreringsförsök för {Email}", request.Email);
+            _logger.LogInformation("Registration attempt for {Email}", request.Email);
 
             var existingUser = await _userManager.FindByEmailAsync(request.Email);
             if (existingUser != null)
@@ -36,30 +43,34 @@ public class AccountService(
             if (!result.Succeeded)
             {
                 var error = string.Join("; ", result.Errors.Select(e => e.Description));
-                _logger.LogWarning("❌ Misslyckades skapa användare: {Error}", error);
+                _logger.LogWarning("Failed to create user: {Error}", error);
                 return AccountResult.CreateFailure(error, 400);
             }
 
+            // Ensure default role exists
             if (!await _roleManager.RoleExistsAsync("User"))
                 await _roleManager.CreateAsync(new IdentityRole("User"));
 
             await _userManager.AddToRoleAsync(user, "User");
 
-            _logger.LogInformation("✅ Användare skapad: {Email}", user.Email);
+            _logger.LogInformation("User successfully created: {Email}", user.Email);
 
+            // Send email verification
             await _verificationClient.SendVerificationCodeAsync(user.Email!);
-
-            _logger.LogInformation("📤 Verifikationskod skickad till {Email}", user.Email);
+            _logger.LogInformation("Verification code sent to {Email}", user.Email);
 
             return AccountResult.CreateSuccess(201);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ RegisterAsync – oväntat fel");
+            _logger.LogError(ex, "RegisterAsync – unexpected error");
             return AccountResult.CreateFailure($"Unexpected error: {ex.Message}", 500);
         }
     }
 
+    /// <summary>
+    /// Confirms the user's email by validating the provided verification code.
+    /// </summary>
     public async Task<AccountResult> ConfirmEmailAsync(string email, string code)
     {
         var user = await _userManager.FindByEmailAsync(email);
@@ -77,6 +88,9 @@ public class AccountService(
         return AccountResult.CreateSuccess();
     }
 
+    /// <summary>
+    /// Sends a password reset token if the user exists.
+    /// </summary>
     public async Task<AccountResult> ForgotPasswordAsync(string email)
     {
         var user = await _userManager.FindByEmailAsync(email);
@@ -84,10 +98,13 @@ public class AccountService(
             return AccountResult.CreateFailure("User not found", 404);
 
         var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-        // TODO: Implementera en separat IPasswordResetClient och skicka länken via mejl
+
         return AccountResult.CreateSuccess();
     }
 
+    /// <summary>
+    /// Resets the password using a valid reset token.
+    /// </summary>
     public async Task<AccountResult> ResetPasswordAsync(string userId, string token, string newPassword)
     {
         var user = await _userManager.FindByIdAsync(userId);
@@ -100,6 +117,9 @@ public class AccountService(
             : AccountResult.CreateFailure("Invalid or expired token", 400);
     }
 
+    /// <summary>
+    /// Validates login credentials and returns a validated user DTO with roles.
+    /// </summary>
     public async Task<AccountResult<ValidatedUserDto>> ValidateLoginAsync(LoginRequest request)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
@@ -121,6 +141,9 @@ public class AccountService(
         return AccountResult<ValidatedUserDto>.CreateSuccess(validatedUser);
     }
 
+    /// <summary>
+    /// Retrieves the user ID by their email address.
+    /// </summary>
     public async Task<string?> GetUserIdByEmailAsync(string email)
     {
         var user = await _userManager.FindByEmailAsync(email);

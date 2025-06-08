@@ -7,20 +7,23 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using Business.Interfaces;
 
-public class VerificationClient : IVerificationClient
+/// <summary>
+/// Handles communication with the external VerificationServiceProvider
+/// for sending and verifying email verification codes.
+/// </summary>
+/// <remarks>
+/// Initializes the verification client with HttpClient and config.
+/// </remarks>
+public class VerificationClient(HttpClient httpClient, ILogger<VerificationClient> logger, IConfiguration config) : IVerificationClient
 {
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<VerificationClient> _logger;
-    private readonly string _baseUrl;
+    private readonly HttpClient _httpClient = httpClient;
+    private readonly ILogger<VerificationClient> _logger = logger;
+    private readonly string _baseUrl = config["VerificationServiceUrl"]
+            ?? throw new InvalidOperationException("Missing VerificationServiceUrl configuration.");
 
-    public VerificationClient(HttpClient httpClient, ILogger<VerificationClient> logger, IConfiguration config)
-    {
-        _httpClient = httpClient;
-        _logger = logger;
-        _baseUrl = config["VerificationServiceUrl"]
-            ?? throw new InvalidOperationException("Missing VerificationServiceUrl config.");
-    }
-
+    /// <summary>
+    /// Sends a verification code to the specified email address.
+    /// </summary>
     public async Task SendVerificationCodeAsync(string email)
     {
         var payload = new { Email = email };
@@ -31,15 +34,18 @@ public class VerificationClient : IVerificationClient
             var response = await _httpClient.PostAsJsonAsync(url, payload);
             response.EnsureSuccessStatusCode();
 
-            _logger.LogInformation("✅ Verifikationskod skickad till {Email}", email);
+            _logger.LogInformation("Verification code sent to {Email}", email);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Kunde inte skicka verifikationskod till {Email}", email);
+            _logger.LogError(ex, "Failed to send verification code to {Email}", email);
             throw;
         }
     }
 
+    /// <summary>
+    /// Verifies the provided code for the given email.
+    /// </summary>
     public async Task<bool> VerifyCodeAsync(string email, string code)
     {
         var payload = new { Email = email, Code = code };
@@ -52,7 +58,7 @@ public class VerificationClient : IVerificationClient
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("⚠️ Verifiering misslyckades ({StatusCode}): {Body}", response.StatusCode, json);
+                _logger.LogWarning("Verification failed ({StatusCode}): {Body}", response.StatusCode, json);
                 return false;
             }
 
@@ -65,11 +71,14 @@ public class VerificationClient : IVerificationClient
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Kunde inte verifiera kod för {Email}", email);
+            _logger.LogError(ex, "❌ Error verifying code for {Email}", email);
             return false;
         }
     }
 
+    /// <summary>
+    /// DTO used for deserializing the verification response from the service.
+    /// </summary>
     private class VerificationResponse
     {
         public bool Succeeded { get; set; }

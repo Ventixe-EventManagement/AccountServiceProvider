@@ -1,5 +1,4 @@
 ﻿namespace Business.DTOs;
-
 public class ValidatedUserDto
 {
     public string Id { get; set; } = null!;

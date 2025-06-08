@@ -1,4 +1,5 @@
-using System.Text;
+﻿using System.Text;
+using Azure.Identity;
 using Business.Interfaces;
 using Business.Models;
 using Business.Services;
@@ -12,13 +13,21 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load secrets from Azure Key Vault
+var keyVaultUrl = builder.Configuration["KeyVault:Url"];
+builder.Configuration.AddAzureKeyVault(new Uri(keyVaultUrl), new DefaultAzureCredential());
+
+// Optional: Read VerificationServiceUrl from Key Vault for manual use if needed
+var verificationServiceUrl = builder.Configuration["VerificationServiceUrl"];
+Console.WriteLine($"VerificationServiceUrl loaded: {verificationServiceUrl}");
+
+// Add Controllers & Swagger
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-// Configure Swagger with JWT support
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Event Service API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Account Service API", Version = "v1" });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
@@ -44,9 +53,23 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// CORS – allow frontend access
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy
+            .WithOrigins("https://agreeable-stone-0b26cb203.6.azurestaticapps.net")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
+// DB & Identity
 builder.Services.AddDbContext<DataContext>(x =>
     x.UseSqlServer(
-        builder.Configuration.GetConnectionString("SqlConnection"),
+        builder.Configuration["ConnectionStrings:SqlConnection"], // ← Loaded from Key Vault
         options => options.MigrationsAssembly("Data")
     )
 );
@@ -59,10 +82,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(x =>
 .AddEntityFrameworkStores<DataContext>()
 .AddDefaultTokenProviders();
 
-builder.Services.AddScoped<IAccountService, AccountService>();
-builder.Services.AddHttpClient<IVerificationClient, VerificationClient>();
-
-// Configure JWT Authentication and Authorization
+// JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -88,26 +108,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+// Services
+builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddHttpClient<IVerificationClient, VerificationClient>();
+
 var app = builder.Build();
 
+// Swagger UI
+app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Event Service API V1");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Account Service API V1");
     c.RoutePrefix = string.Empty;
 });
 
-app.MapOpenApi();
-
-app.UseSwagger();
-
+// Middleware
 app.UseHttpsRedirection();
-app.UseCors(x =>
-{
-    x.AllowAnyOrigin()
-     .AllowAnyMethod()
-     .AllowAnyHeader();
-});
-
+app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
