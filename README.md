@@ -40,8 +40,8 @@ Secrets expected in Key Vault:
 
 ## Technologies
 
-ASP.NET Core 9
-Entity Framework Core
-Azure Key Vault
-Microsoft Identity
-JWT Bearer Authentication
+- ASP.NET Core 9
+- Entity Framework Core
+- Azure Key Vault
+- Microsoft Identity
+- JWT Bearer Authentication
